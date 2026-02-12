@@ -1,0 +1,10 @@
+.env
+__pycache__/
+*.pyc
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.venv/
+*.log
+external/a2a-samples/samples/python/agents/adk_facts/.env
