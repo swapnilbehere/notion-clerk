@@ -7,4 +7,12 @@ build/
 .pytest_cache/
 .venv/
 *.log
-external/a2a-samples/samples/python/agents/adk_facts/.env
+.DS_Store
+node_modules/
+.streamlit/secrets.toml
+
+# Archive of pre-redesign ADK/A2A code — kept locally, not tracked
+_archive/
+
+# Legacy submodule (removed in redesign)
+external/a2a-samples/
