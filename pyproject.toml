@@ -3,19 +3,17 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "notion-agent"
+name = "notion-clerk"
 version = "0.1.0"
-description = "Agentic Notion workspace manager using Google ADK"
+description = "Chat with your Notion workspace in plain English"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "google-adk[a2a]>=1.0.0",
-    "a2a-sdk>=0.2.0",
     "google-genai>=1.0.0",
-    "httpx>=0.27.0",
     "requests>=2.31.0",
     "python-dateutil>=2.9.0",
     "python-dotenv>=1.0.0",
+    "streamlit>=1.35.0",
 ]
 
 [project.optional-dependencies]
@@ -25,9 +23,6 @@ dev = [
     "responses>=0.25.0",
     "ruff>=0.5.0",
 ]
-
-[project.scripts]
-notion-agent = "scripts.run:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -39,3 +34,4 @@ markers = [
 [tool.ruff]
 line-length = 100
 target-version = "py310"
+exclude = ["_archive/", "*.ipynb"]
