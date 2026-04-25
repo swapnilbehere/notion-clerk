@@ -1,6 +1,5 @@
 """Tests for the demo-mode write interceptor."""
 
-import pytest
 from notion_clerk.demo_tools import make_write_tools, get_write_buffer
 
 
@@ -28,7 +27,7 @@ class TestMakeWriteToolsDemoMode:
 
     def test_update_database_item_buffers_entry(self):
         tools = make_write_tools(self.session, demo_mode=True)
-        result = tools["update_database_item"]("page-123", {"Done": True})
+        tools["update_database_item"]("page-123", {"Done": True})
         buffer = get_write_buffer(self.session)
         assert buffer[0]["type"] == "update"
         assert buffer[0]["id"] == "page-123"
@@ -61,5 +60,5 @@ class TestMakeWriteToolsProductionMode:
 
     def test_no_entries_buffered_in_production_mode(self):
         session = {}
-        tools = make_write_tools(session, demo_mode=False)
+        make_write_tools(session, demo_mode=False)
         assert "write_buffer" not in session

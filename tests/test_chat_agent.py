@@ -1,7 +1,6 @@
 """Tests for the Gemini function-calling agent loop."""
 
 import importlib
-import pytest
 from unittest.mock import MagicMock, patch
 
 
