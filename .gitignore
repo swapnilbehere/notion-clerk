@@ -16,3 +16,6 @@ _archive/
 
 # Legacy submodule (removed in redesign)
 external/a2a-samples/
+
+# Claude Code local config
+.claude/
