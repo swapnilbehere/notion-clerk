@@ -1,5 +1,6 @@
 """Groq-backed agent loop for Notion Clerk (OpenAI-compatible API)."""
 
+import inspect
 import json
 import logging
 from typing import Any, Callable
@@ -207,6 +208,12 @@ def _dispatch(name: str, args: dict[str, Any], registry: dict[str, Callable]) ->
     # Auto-resolve database names to UUIDs so Llama's name-based calls still work
     if "database_id" in safe_args:
         safe_args = {**safe_args, "database_id": _resolve_database_id(safe_args["database_id"])}
+    # Strip kwargs the function doesn't accept (smaller models hallucinate extra params)
+    try:
+        valid = set(inspect.signature(fn).parameters)
+        safe_args = {k: v for k, v in safe_args.items() if k in valid}
+    except (ValueError, TypeError):
+        pass
     try:
         return fn(**safe_args)
     except Exception as exc:
