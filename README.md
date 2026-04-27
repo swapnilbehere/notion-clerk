@@ -6,22 +6,20 @@ Chat with your Notion workspace in plain English. No buttons, no database IDs �
 
 ## What it does
 
-Notion Clerk is an AI chat agent backed by Gemini function calling. You type a request, and it:
-
-1. Discovers your Notion databases
-2. Creates, reads, updates, or searches — with correctly typed properties
-3. Confirms what it did in plain English
+Notion Clerk is an AI chat agent backed by Groq (Llama 3.3 70B) with function calling. It's deployed as a portfolio showcase — ask about Swapnil Behere's projects, skills, and experience, or leave feedback.
 
 **Example interactions:**
-- *"Add a task called 'Book dentist appointment' with status Todo"*
-- *"What projects am I currently working on?"*
-- *"List all my databases"*
+- *"What projects has Swapnil built?"*
+- *"What's the tech stack for TalkaWalk?"*
+- *"Show his work experience"*
+- *"What are his top ML skills?"*
 
 ## Tech stack
 
 | Layer | Technology |
 |-------|-----------|
-| Agent | Gemini SDK (`google-genai`) with native function calling |
+| Agent | Groq API (`llama-3.3-70b-versatile`) via OpenAI-compatible client |
+| Fallback | `llama-3.1-8b-instant` (quota guard) |
 | UI | Streamlit |
 | Hosting | Streamlit Cloud |
 | Notion | REST API v1 |
@@ -29,8 +27,8 @@ Notion Clerk is an AI chat agent backed by Gemini function calling. You type a r
 ## Local setup
 
 ```bash
-git clone https://github.com/swapnilbehere/NotionAgent
-cd NotionAgent
+git clone https://github.com/swapnilbehere/notion-clerk
+cd notion-clerk
 pip install -e ".[dev]"
 cp .env.example .env
 # Fill in .env with your keys
@@ -38,7 +36,7 @@ streamlit run streamlit_app.py
 ```
 
 **Required env vars:**
-- `GOOGLE_API_KEY` — [Google AI Studio](https://aistudio.google.com)
+- `GROQ_API_KEY` — [Groq Console](https://console.groq.com/keys)
 - `NOTION_API_KEY` — [Notion integrations](https://www.notion.so/my-integrations)
 - `NOTION_PARENT_PAGE` — Parent page ID for new pages
 
@@ -49,12 +47,12 @@ See `.env.example` for full reference.
 ```
 notion_clerk/
 ├── config.py        # Secrets and constants
-├── tools.py         # Notion REST helpers (search, query, create, update)
-├── chat_agent.py    # Gemini SDK function-calling loop
+├── tools.py         # Notion REST helpers (search, query, create, update, feedback)
+├── chat_agent.py    # Groq function-calling loop with primary/fallback model
 └── demo_tools.py    # Write interceptor for demo mode
 
 streamlit_app.py     # Chat UI with feedback sidebar
-tests/               # 45 unit tests, no live API calls
+tests/               # 61 unit tests, no live API calls
 ```
 
 ## Demo mode

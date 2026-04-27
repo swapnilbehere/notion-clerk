@@ -14,8 +14,9 @@ node_modules/
 # Archive of pre-redesign ADK/A2A code — kept locally, not tracked
 _archive/
 
-# Legacy submodule (removed in redesign)
+# Legacy submodule and ADK artifacts
 external/a2a-samples/
+notion_clerk/.adk/
 
 # Claude Code local config
 .claude/

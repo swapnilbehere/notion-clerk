@@ -25,7 +25,7 @@ jobs:
 
       - name: Test
         env:
-          GOOGLE_API_KEY: test-google-key
+          GROQ_API_KEY: test-groq-key
           NOTION_API_KEY: test-notion-key
           NOTION_PARENT_PAGE: test-parent-page-id
           NOTION_FEEDBACK_DB_ID: test-feedback-db-id
