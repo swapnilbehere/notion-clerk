@@ -257,7 +257,7 @@ def submit_feedback(name: str, message: str) -> dict:
         {
             "Name": (name or "Anonymous").strip()[:50],
             "Message": message.strip()[:280],
-            "Timestamp": datetime.now().isoformat(),
+            "Date": datetime.now().isoformat(),
         },
     )
 
