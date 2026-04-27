@@ -98,11 +98,14 @@ def _handle_message(prompt: str) -> None:
                 write_tools=write_tools,
             )
         except Exception as exc:
-            logging.error("Agent error: %s", exc)
-            response = (
-                "Sorry, I hit an error talking to the AI backend. "
-                "This is usually a temporary API issue — please try again in a moment."
-            )
+            exc_type = type(exc).__name__
+            logging.error("Agent error (%s): %s", exc_type, exc)
+            if "api_key" in str(exc).lower() or "authentication" in str(exc).lower() or "401" in str(exc):
+                response = "Configuration error: the AI API key appears to be invalid or missing. Please contact the site owner."
+            elif "quota" in str(exc).lower() or "429" in str(exc) or "resource_exhausted" in str(exc).lower():
+                response = "The AI service is over its free quota right now. Please try again in a few minutes."
+            else:
+                response = f"Sorry, I hit an error ({exc_type}). Please try again in a moment."
             new_entries = []
 
     st.session_state.messages.append({"role": "assistant", "content": response})
