@@ -104,7 +104,10 @@ def main() -> None:
     _render_sidebar()
 
     st.title("Notion Clerk")
-    st.caption("Chat with Swapnil Behere's portfolio workspace in plain English.")
+    st.markdown(
+        "👋 This is **Swapnil Behere's** portfolio — an AI/ML Engineer building GenAI & ML systems.  \n"
+        "Ask about his projects, skills, or experience. Everything lives in Notion and answers in seconds."
+    )
 
     if not st.session_state.messages:
         st.markdown("**Try one of these:**")
