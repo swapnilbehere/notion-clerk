@@ -208,10 +208,16 @@ def _dispatch(name: str, args: dict[str, Any], registry: dict[str, Callable]) ->
     # Auto-resolve database names to UUIDs so Llama's name-based calls still work
     if "database_id" in safe_args:
         safe_args = {**safe_args, "database_id": _resolve_database_id(safe_args["database_id"])}
-    # Strip kwargs the function doesn't accept (smaller models hallucinate extra params)
+    # Strip kwargs the function doesn't accept (smaller models hallucinate extra params).
+    # Only filter when the function has explicit params (not **kwargs catch-all).
     try:
-        valid = set(inspect.signature(fn).parameters)
-        safe_args = {k: v for k, v in safe_args.items() if k in valid}
+        sig = inspect.signature(fn)
+        has_var_kw = any(
+            p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()
+        )
+        if not has_var_kw:
+            valid = set(sig.parameters)
+            safe_args = {k: v for k, v in safe_args.items() if k in valid}
     except (ValueError, TypeError):
         pass
     try:
