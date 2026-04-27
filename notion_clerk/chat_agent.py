@@ -32,9 +32,11 @@ GitHub: https://github.com/swapnilbehere/notion-clerk
 
 **TalkaWalk** (Completed) | React Native, Groq API, LLM, STT, TTS
 Offline-first Android AI companion with a custom ConversationEngine orchestrating a full voice pipeline (STT → LLM → TTS). Supports on-device inference via Qwen 2.5 1.5B (llama.rn) and streaming cloud fallback via Groq API. Resilient across 3 failure modes with exponential-backoff retry.
+GitHub: https://github.com/swapnilbehere/ToKaWalk
 
 **RAG System for Chromatography** (Completed) | Python, RAG, LangChain, ChromaDB, PyTorch
 Two-stage RAG pipeline that interprets chromatogram anomalies and returns ranked root-cause diagnoses with likelihood scores. Retrieves from internal PDFs, runbooks, and golden reference chromatograms. Evaluated with RAG metrics: faithfulness, response relevancy, context precision/recall.
+GitHub: https://github.com/swapnilbehere/Chromatograph_analyzer
 
 **Posture Estimation for Yoga Asanas** (Completed) | PyTorch, OpenPose, LSTM, Detectron2, OpenCV
 Real-time posture estimation and correction pipeline using OpenPose keypoints and an LSTM temporal model. Achieved 92% validation accuracy across 5 asanas by fine-tuning Detectron2. Collected and annotated 150+ videos with geometric augmentations for robustness.
