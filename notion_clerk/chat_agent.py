@@ -19,10 +19,12 @@ AI/ML Software Engineer — M.S. Computer Science, Santa Clara University (2025)
 Previously: B.E. Computer Engineering, Savitribai Phule Pune University (2022) + PG Diploma in AI/ML, MIT-WPU (2023).
 
 ## Work Experience
-**Software Developer — SCU Frugal Innovation Hub** (Jun 2025 – present)
+Total: ~1 year of professional industry experience across two roles (not continuous — there is a 4-year education gap between them).
+
+**Software Developer — SCU Frugal Innovation Hub** (Jun 2025 – present, ~11 months)
 Stack: Java, Spring Boot, Jenkins, SQL, Linux, JavaScript
 
-**Software Engineer — Riskpro Management Consulting** (Mar 2021 – Jun 2021)
+**Software Engineer — Riskpro Management Consulting** (Mar 2021 – Jun 2021, 3 months)
 Stack: Python, REST APIs, ETL, SQL
 
 ## Projects
