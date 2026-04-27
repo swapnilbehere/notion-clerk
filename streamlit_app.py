@@ -112,8 +112,24 @@ def _handle_message(prompt: str) -> None:
     st.session_state.gemini_history.extend(new_entries)
 
 
+def _inject_css() -> None:
+    st.markdown(
+        """
+        <style>
+        /* Ensure chat input text is visible on dark backgrounds */
+        div[data-testid="stChatInput"] textarea {
+            color: #F0F0F0 !important;
+            caret-color: #F0F0F0 !important;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def main() -> None:
     _init_session()
+    _inject_css()
     _render_sidebar()
 
     st.title("Notion Clerk")

@@ -232,6 +232,7 @@ def _run_with_model(
     user_message: str,
     history: list,
     registry: dict[str, Callable],
+    use_tools: bool = True,
 ) -> tuple[str, list]:
     client = OpenAI(api_key=GROQ_API_KEY, base_url=_GROQ_BASE_URL)
 
@@ -242,13 +243,16 @@ def _run_with_model(
     new_entries: list = [{"role": "user", "content": user_message}]
 
     while True:
-        response = client.chat.completions.create(
-            model=model,
-            messages=messages,
-            tools=_TOOLS,
-            tool_choice="auto",
-            temperature=0.1,
-        )
+        create_kwargs: dict[str, Any] = {
+            "model": model,
+            "messages": messages,
+            "temperature": 0.1,
+        }
+        if use_tools:
+            create_kwargs["tools"] = _TOOLS
+            create_kwargs["tool_choice"] = "auto"
+
+        response = client.chat.completions.create(**create_kwargs)
 
         msg = response.choices[0].message
 
@@ -323,4 +327,6 @@ def run_agent_turn(
             AGENT_MODEL, exc, FALLBACK_MODEL,
         )
         slim_history = _slim_history_for_fallback(gemini_history)
-        return _run_with_model(FALLBACK_MODEL, user_message, slim_history, registry)
+        # Disable tools for fallback: it answers from slim text context rather than
+        # re-querying Notion, which would push the tiny 6k-TPM limit over again.
+        return _run_with_model(FALLBACK_MODEL, user_message, slim_history, registry, use_tools=False)

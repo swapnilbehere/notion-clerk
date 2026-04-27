@@ -153,6 +153,21 @@ class TestRunAgentTurn:
         assert text == "Fallback response."
         assert mock_client.chat.completions.create.call_count == 2
 
+    def test_fallback_does_not_pass_tools(self):
+        agent = _reload_agent()
+        mock_client = self._make_mock_client()
+        mock_client.chat.completions.create.side_effect = [
+            Exception("quota exceeded"),
+            _make_text_response("Fallback response."),
+        ]
+
+        with patch.object(agent, "OpenAI", return_value=mock_client):
+            agent.run_agent_turn("Hi", [])
+
+        fallback_kwargs = mock_client.chat.completions.create.call_args_list[1][1]
+        assert "tools" not in fallback_kwargs
+        assert "tool_choice" not in fallback_kwargs
+
     def test_fallback_strips_tool_messages_and_truncates(self):
         agent = _reload_agent()
         mock_client = self._make_mock_client()
