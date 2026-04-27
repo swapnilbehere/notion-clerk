@@ -19,6 +19,7 @@ NOTION_BASE_URL: str = "https://api.notion.com/v1"
 
 # --- Model ---
 AGENT_MODEL: str = os.getenv("AGENT_MODEL", "gemini-2.5-flash-lite")
+FALLBACK_MODEL: str = os.getenv("FALLBACK_MODEL", "gemini-2.0-flash")
 
 # --- Demo mode ---
 DEMO_MODE: bool = os.getenv("DEMO_MODE", "false").lower() == "true"

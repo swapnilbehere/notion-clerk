@@ -6,7 +6,7 @@ from typing import Any, Callable
 from google import genai
 from google.genai import types
 
-from .config import GOOGLE_API_KEY, AGENT_MODEL
+from .config import GOOGLE_API_KEY, AGENT_MODEL, FALLBACK_MODEL
 from . import tools as notion_tools
 
 _SYSTEM_INSTRUCTION = """You are Notion Clerk, an AI assistant embedded in Swapnil Behere's professional portfolio workspace.
@@ -189,38 +189,22 @@ def _dispatch(name: str, args: dict[str, Any], registry: dict[str, Callable]) ->
         return {"error": str(exc)}
 
 
-def run_agent_turn(
+def _run_with_model(
+    model: str,
     user_message: str,
     gemini_history: list,
-    write_tools: dict[str, Callable] | None = None,
+    registry: dict[str, Callable],
 ) -> tuple[str, list]:
-    """
-    Run one conversational turn through the Gemini function-calling loop.
-
-    Args:
-        user_message: The user's input text.
-        gemini_history: Prior turns as a list of types.Content objects.
-        write_tools: Optional overrides for write functions (used in demo mode).
-
-    Returns:
-        (response_text, new_history_entries) where new_history_entries are
-        the Content objects added this turn (to be appended to gemini_history).
-    """
-    registry = {**_READ_REGISTRY, **_DEFAULT_WRITE_REGISTRY}
-    if write_tools:
-        registry.update(write_tools)
-
     client = genai.Client(api_key=GOOGLE_API_KEY)
 
     contents = list(gemini_history)
     contents.append(types.Content(role="user", parts=[types.Part(text=user_message)]))
 
-    new_entries: list = []
-    new_entries.append(contents[-1])  # the user message
+    new_entries: list = [contents[-1]]
 
     while True:
         response = client.models.generate_content(
-            model=AGENT_MODEL,
+            model=model,
             contents=contents,
             config=types.GenerateContentConfig(
                 system_instruction=_SYSTEM_INSTRUCTION,
@@ -259,3 +243,29 @@ def run_agent_turn(
         p.text for p in candidate.content.parts if p.text is not None
     )
     return response_text, new_entries
+
+
+def run_agent_turn(
+    user_message: str,
+    gemini_history: list,
+    write_tools: dict[str, Callable] | None = None,
+) -> tuple[str, list]:
+    """
+    Run one conversational turn through the Gemini function-calling loop.
+    Falls back to FALLBACK_MODEL if the primary model raises an error.
+
+    Returns:
+        (response_text, new_history_entries)
+    """
+    registry = {**_READ_REGISTRY, **_DEFAULT_WRITE_REGISTRY}
+    if write_tools:
+        registry.update(write_tools)
+
+    try:
+        return _run_with_model(AGENT_MODEL, user_message, gemini_history, registry)
+    except Exception as exc:
+        logging.warning(
+            "Primary model %s failed (%s), retrying with fallback %s",
+            AGENT_MODEL, exc, FALLBACK_MODEL,
+        )
+        return _run_with_model(FALLBACK_MODEL, user_message, gemini_history, registry)
