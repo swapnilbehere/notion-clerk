@@ -1,6 +1,8 @@
 """Notion Clerk — Streamlit chat interface."""
 
 import html
+import logging
+
 import streamlit as st
 
 from notion_clerk import run_agent_turn
@@ -89,11 +91,19 @@ def _handle_message(prompt: str) -> None:
     )
 
     with st.spinner(""):
-        response, new_entries = run_agent_turn(
-            user_message=prompt,
-            gemini_history=st.session_state.gemini_history,
-            write_tools=write_tools,
-        )
+        try:
+            response, new_entries = run_agent_turn(
+                user_message=prompt,
+                gemini_history=st.session_state.gemini_history,
+                write_tools=write_tools,
+            )
+        except Exception as exc:
+            logging.error("Agent error: %s", exc)
+            response = (
+                "Sorry, I hit an error talking to the AI backend. "
+                "This is usually a temporary API issue — please try again in a moment."
+            )
+            new_entries = []
 
     st.session_state.messages.append({"role": "assistant", "content": response})
     st.session_state.gemini_history.extend(new_entries)
