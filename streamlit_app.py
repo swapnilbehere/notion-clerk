@@ -32,10 +32,18 @@ def _render_sidebar() -> None:
     with st.sidebar:
         st.title("🗂 Notion Clerk")
         st.markdown(
-            "Manage your Notion workspace through natural conversation — "
-            "no buttons, no database IDs."
+            "This is **Swapnil Behere's** portfolio workspace — "
+            "an AI/ML Software Engineer (M.S. CS, Santa Clara University). "
+            "Ask anything about his experience, projects, or skills."
         )
-        st.markdown("[⭐ View on GitHub](https://github.com/swapnilbehere/NotionAgent)")
+        st.markdown(
+            "**What's here:**\n"
+            "- 💼 Work Experience\n"
+            "- 🚀 Projects\n"
+            "- 🛠 Skills\n"
+            "- 🎓 Education"
+        )
+        st.markdown("[⭐ View on GitHub](https://github.com/swapnilbehere/notion-clerk)")
 
         st.divider()
 
@@ -96,15 +104,15 @@ def main() -> None:
     _render_sidebar()
 
     st.title("Notion Clerk")
-    st.caption("Chat with your Notion workspace in plain English.")
+    st.caption("Chat with Swapnil Behere's portfolio workspace in plain English.")
 
     if not st.session_state.messages:
         st.markdown("**Try one of these:**")
         cols = st.columns(3)
         quick_prompts = [
-            ("📝 Add a task", "Add a task called 'Review project proposal' with status 'Todo'"),
-            ("🔍 Search workspace", "What projects am I currently working on?"),
-            ("🧹 Show databases", "List all my Notion databases"),
+            ("🚀 His projects", "What projects has Swapnil built?"),
+            ("🛠 His skills", "What are Swapnil's top ML and GenAI skills?"),
+            ("💼 His experience", "Show Swapnil's work experience"),
         ]
         for col, (label, prompt) in zip(cols, quick_prompts):
             with col:
