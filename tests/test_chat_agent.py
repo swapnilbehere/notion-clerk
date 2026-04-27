@@ -152,3 +152,23 @@ class TestRunAgentTurn:
 
         assert text == "Fallback response."
         assert mock_client.chat.completions.create.call_count == 2
+
+    def test_fallback_truncates_long_history(self):
+        agent = _reload_agent()
+        mock_client = self._make_mock_client()
+        mock_client.chat.completions.create.side_effect = [
+            Exception("quota exceeded"),
+            _make_text_response("Fallback response."),
+        ]
+
+        # 10 history entries — fallback should only use the last 4
+        long_history = [{"role": "user", "content": f"msg {i}"} for i in range(10)]
+        with patch.object(agent, "OpenAI", return_value=mock_client):
+            text, _ = agent.run_agent_turn("Hi", long_history)
+
+        assert text == "Fallback response."
+        # Second call to completions.create is the fallback; check its messages list.
+        # The list is mutable so the assistant reply (appended after the call) is visible here.
+        # system(1) + 4 truncated history + user(1) + assistant reply(1) = 7 (not the full 10+3)
+        fallback_call_messages = mock_client.chat.completions.create.call_args_list[1][1]["messages"]
+        assert len(fallback_call_messages) == 7  # would be 13 without truncation

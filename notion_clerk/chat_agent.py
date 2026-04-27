@@ -306,4 +306,6 @@ def run_agent_turn(
             "Primary model %s failed (%s), retrying with fallback %s",
             AGENT_MODEL, exc, FALLBACK_MODEL,
         )
-        return _run_with_model(FALLBACK_MODEL, user_message, gemini_history, registry)
+        # Truncate history to avoid exceeding fallback model's small context window (6k TPM).
+        truncated_history = gemini_history[-4:] if len(gemini_history) > 4 else gemini_history
+        return _run_with_model(FALLBACK_MODEL, user_message, truncated_history, registry)
