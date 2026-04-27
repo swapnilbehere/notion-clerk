@@ -10,6 +10,11 @@ from notion_clerk.config import DEMO_MODE, NOTION_FEEDBACK_DB_ID
 from notion_clerk.demo_tools import make_write_tools
 from notion_clerk.tools import submit_feedback, get_recent_feedback
 
+
+@st.cache_data(ttl=300)
+def _load_recent_feedback() -> list:
+    return get_recent_feedback(limit=5)
+
 st.set_page_config(
     page_title="Notion Clerk",
     page_icon="🗂",
@@ -73,8 +78,7 @@ def _render_sidebar() -> None:
 
         if NOTION_FEEDBACK_DB_ID:
             st.subheader("🗣 Recent Feedback")
-            with st.spinner(""):
-                entries = get_recent_feedback(limit=5)
+            entries = _load_recent_feedback()
             if entries:
                 for entry in entries:
                     st.markdown(f"**{entry['name']}** — {entry['message']}")

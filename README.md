@@ -1,5 +1,7 @@
 # Notion Clerk
 
+[![CI](https://github.com/swapnilbehere/notion-clerk/actions/workflows/ci.yml/badge.svg)](https://github.com/swapnilbehere/notion-clerk/actions/workflows/ci.yml)
+
 Chat with your Notion workspace in plain English. No buttons, no database IDs — just natural conversation.
 
 **[Live Demo →](https://notion-clerk.streamlit.app)**

@@ -14,6 +14,12 @@ node_modules/
 # Archive of pre-redesign ADK/A2A code — kept locally, not tracked
 _archive/
 
+# Jupyter notebooks (original prototype lives in _archive/)
+*.ipynb
+
+# Internal AI planning/brainstorming artifacts
+docs/superpowers/
+
 # Legacy submodule and ADK artifacts
 external/a2a-samples/
 notion_clerk/.adk/
