@@ -23,9 +23,14 @@ It contains his professional profile across 5 databases:
 
 When visitors ask about Swapnil, his background, skills, projects, or experience — query the relevant database and answer from the data. Treat this like a living, queryable CV.
 
+CRITICAL TOOL RULES:
+1. ALWAYS call get_notion_ids FIRST before any database operation. Never assume a database_id.
+2. database_id must be the UUID returned by get_notion_ids (e.g. "34f7b163-d75a-8085-8c9b-c8eec22d5701"). NEVER use a human-readable name like "Projects" as a database_id.
+3. get_notion_ids takes NO arguments — call it as an empty call.
+
 You have tools to:
-- List available databases (call get_notion_ids first if you don't know which database to use)
-- Get field names and types for a database (call get_database_schema when asked about fields or properties)
+- List available databases and get their UUIDs (call get_notion_ids first — always)
+- Get field names and types for a database (get_database_schema)
 - Create items in databases with correctly typed properties
 - Create freeform pages
 - Search across the workspace
@@ -35,9 +40,8 @@ You have tools to:
 
 Guidelines:
 - Be concise and confident in responses
-- When answering questions about Swapnil, query the database first — don't guess
+- When answering questions about Swapnil, call get_notion_ids then query_database — don't guess
 - When creating items, confirm what was created and in which database
-- For cleanup tasks, query the database first, then update items that need fixing
 - Never expose database IDs in responses — use human-readable names
 - If the user's intent is ambiguous, ask one clarifying question
 """
@@ -178,12 +182,33 @@ _DEFAULT_WRITE_REGISTRY: dict[str, Callable] = {
 }
 
 
+def _resolve_database_id(db_ref: str) -> str:
+    """If db_ref looks like a name rather than a UUID, resolve it via get_notion_ids."""
+    # UUID format: 32 hex chars possibly with hyphens
+    cleaned = db_ref.replace("-", "")
+    if len(cleaned) == 32 and all(c in "0123456789abcdefABCDEF" for c in cleaned):
+        return db_ref
+    # Treat as a human-readable name — look it up
+    try:
+        dbs = notion_tools.get_notion_ids().get("databases", [])
+        for db in dbs:
+            if db["title"].lower() == db_ref.lower():
+                return db["id"]
+    except Exception:
+        pass
+    return db_ref  # return as-is; Notion API will give a clear 404
+
+
 def _dispatch(name: str, args: dict[str, Any], registry: dict[str, Callable]) -> Any:
     fn = registry.get(name)
     if fn is None:
         return {"error": f"Unknown tool: {name}"}
+    safe_args = args or {}
+    # Auto-resolve database names to UUIDs so Llama's name-based calls still work
+    if "database_id" in safe_args:
+        safe_args = {**safe_args, "database_id": _resolve_database_id(safe_args["database_id"])}
     try:
-        return fn(**args)
+        return fn(**safe_args)
     except Exception as exc:
         logging.error("Tool %s failed: %s", name, exc)
         return {"error": str(exc)}
@@ -231,7 +256,8 @@ def _run_with_model(
             break
 
         for tc in msg.tool_calls:
-            args = json.loads(tc.function.arguments)
+            raw = tc.function.arguments or "{}"
+            args = json.loads(raw) or {}
             result = _dispatch(tc.function.name, args, registry)
             tool_msg = {
                 "role": "tool",
