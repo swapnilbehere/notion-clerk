@@ -129,6 +129,48 @@ def _coerce_property_value(prop_schema: dict, value: Any) -> dict:
     return {"rich_text": [{"text": {"content": _as_str(value)}}]}
 
 
+def _extract_property_value(prop: dict) -> Any:
+    """Extract a plain Python value from a raw Notion property object."""
+    ptype = prop.get("type")
+    if ptype == "title":
+        return "".join(t.get("plain_text", "") for t in prop.get("title", []))
+    if ptype == "rich_text":
+        return "".join(t.get("plain_text", "") for t in prop.get("rich_text", []))
+    if ptype == "select":
+        sel = prop.get("select")
+        return sel.get("name") if sel else None
+    if ptype == "multi_select":
+        return [o.get("name") for o in prop.get("multi_select", [])]
+    if ptype == "checkbox":
+        return prop.get("checkbox")
+    if ptype == "number":
+        return prop.get("number")
+    if ptype == "url":
+        return prop.get("url")
+    if ptype == "date":
+        d = prop.get("date")
+        return d.get("start") if d else None
+    if ptype == "email":
+        return prop.get("email")
+    if ptype == "phone_number":
+        return prop.get("phone_number")
+    if ptype == "created_time":
+        return prop.get("created_time")
+    if ptype == "last_edited_time":
+        return prop.get("last_edited_time")
+    return None
+
+
+def _flatten_page(page: dict) -> dict:
+    """Return a flat dict of {property_name: value} for a Notion page."""
+    flat: dict[str, Any] = {"id": page.get("id")}
+    for name, prop in page.get("properties", {}).items():
+        val = _extract_property_value(prop)
+        if val is not None and val != "" and val != []:
+            flat[name] = val
+    return flat
+
+
 def get_database_schema(database_id: str) -> dict:
     """Return the property names and types for a Notion database."""
     schema = _get_database_schema(database_id)
@@ -205,24 +247,43 @@ def search_notion(query: str) -> dict:
 
 
 def query_database(database_id: str) -> dict:
-    """Query all items in a Notion database (up to 50 rows)."""
+    """Query all items in a Notion database (up to 50 rows).
+
+    Returns a flat list of {property_name: value} dicts — no raw Notion JSON.
+    """
     resp = requests.post(
         f"{NOTION_BASE_URL}/databases/{database_id}/query",
         headers=_notion_headers(),
         json={"page_size": 50},
     )
     resp.raise_for_status()
-    return resp.json()
+    raw = resp.json()
+    return {"results": [_flatten_page(p) for p in raw.get("results", [])]}
 
 
 def fetch_page(page_id: str) -> dict:
-    """Fetch a Notion page's properties and its top-level content blocks."""
+    """Fetch a Notion page's properties and its top-level content blocks.
+
+    Returns flattened properties plus a list of plain-text block contents.
+    """
     headers = _notion_headers()
     page_resp = requests.get(f"{NOTION_BASE_URL}/pages/{page_id}", headers=headers)
     page_resp.raise_for_status()
     blocks_resp = requests.get(f"{NOTION_BASE_URL}/blocks/{page_id}/children", headers=headers)
     blocks_resp.raise_for_status()
-    return {"page": page_resp.json(), "blocks": blocks_resp.json()}
+
+    blocks_text = []
+    for block in blocks_resp.json().get("results", []):
+        btype = block.get("type", "")
+        inner = block.get(btype, {})
+        texts = "".join(t.get("plain_text", "") for t in inner.get("rich_text", []))
+        if texts:
+            blocks_text.append(texts)
+
+    return {
+        "properties": _flatten_page(page_resp.json()),
+        "content": blocks_text,
+    }
 
 
 def update_database_item(page_id: str, properties: dict) -> dict:

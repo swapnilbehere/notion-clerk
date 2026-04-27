@@ -93,6 +93,84 @@ class TestCoercePropertyValue:
         assert "rich_text" in result
 
 
+class TestExtractPropertyValue:
+    def _extract(self, prop):
+        tools = _reload_tools()
+        return tools._extract_property_value(prop)
+
+    def test_title(self):
+        assert self._extract({"type": "title", "title": [{"plain_text": "Hello"}]}) == "Hello"
+
+    def test_rich_text(self):
+        assert self._extract({"type": "rich_text", "rich_text": [{"plain_text": "World"}]}) == "World"
+
+    def test_select(self):
+        assert self._extract({"type": "select", "select": {"name": "Active"}}) == "Active"
+
+    def test_select_none(self):
+        assert self._extract({"type": "select", "select": None}) is None
+
+    def test_multi_select(self):
+        assert self._extract({
+            "type": "multi_select",
+            "multi_select": [{"name": "Python"}, {"name": "Go"}],
+        }) == ["Python", "Go"]
+
+    def test_checkbox(self):
+        assert self._extract({"type": "checkbox", "checkbox": True}) is True
+
+    def test_number(self):
+        assert self._extract({"type": "number", "number": 42}) == 42
+
+    def test_url(self):
+        assert self._extract({"type": "url", "url": "https://example.com"}) == "https://example.com"
+
+    def test_date(self):
+        assert self._extract({"type": "date", "date": {"start": "2025-01-01"}}) == "2025-01-01"
+
+
+class TestQueryDatabase:
+    @patch("notion_clerk.tools.requests.post")
+    def test_returns_flattened_results(self, mock_post, mock_notion_response):
+        tools = _reload_tools()
+        mock_post.return_value = mock_notion_response(json_data={
+            "results": [
+                {
+                    "id": "page-1",
+                    "properties": {
+                        "Name": {"type": "title", "title": [{"plain_text": "Notion Clerk"}]},
+                        "Description": {"type": "rich_text", "rich_text": [{"plain_text": "An AI agent"}]},
+                        "Status": {"type": "select", "select": {"name": "Active"}},
+                    },
+                }
+            ],
+        })
+        result = tools.query_database("db-123")
+        assert len(result["results"]) == 1
+        item = result["results"][0]
+        assert item["Name"] == "Notion Clerk"
+        assert item["Description"] == "An AI agent"
+        assert item["Status"] == "Active"
+        assert item["id"] == "page-1"
+
+    @patch("notion_clerk.tools.requests.post")
+    def test_empty_fields_omitted(self, mock_post, mock_notion_response):
+        tools = _reload_tools()
+        mock_post.return_value = mock_notion_response(json_data={
+            "results": [
+                {
+                    "id": "page-2",
+                    "properties": {
+                        "Name": {"type": "title", "title": [{"plain_text": "Test"}]},
+                        "Description": {"type": "rich_text", "rich_text": []},
+                    },
+                }
+            ],
+        })
+        result = tools.query_database("db-123")
+        assert "Description" not in result["results"][0]
+
+
 class TestGetNotionIds:
     @patch("notion_clerk.tools.requests.post")
     def test_returns_databases(self, mock_post, mock_notion_response):

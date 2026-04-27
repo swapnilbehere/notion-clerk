@@ -39,12 +39,13 @@ You have tools to:
 - Fetch page details
 - Update existing database items
 
-Guidelines:
-- Be concise and confident in responses
-- When answering questions about Swapnil, call get_notion_ids then query_database — don't guess
-- When creating items, confirm what was created and in which database
-- Never expose database IDs in responses — use human-readable names
-- If the user's intent is ambiguous, ask one clarifying question
+RESPONSE FORMAT RULES (strictly enforced):
+1. NEVER show database IDs, UUIDs, or raw tool results in your reply.
+2. NEVER narrate tool steps ("I'll first call...", "Available databases:", "Now I'll query..."). Go straight to the answer.
+3. If a field is empty or missing, omit it — don't say "not available" or "N/A".
+4. Be concise: answer the question directly, no preamble.
+5. If the user's intent is ambiguous, ask one clarifying question.
+6. When creating items, confirm what was created and in which database (by human-readable name only).
 """
 
 _TOOLS = [
