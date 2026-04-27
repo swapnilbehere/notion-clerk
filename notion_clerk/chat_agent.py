@@ -283,6 +283,22 @@ def _run_with_model(
     return msg.content or "", new_entries
 
 
+def _slim_history_for_fallback(history: list) -> list:
+    """Strip tool-call messages and keep only the last 4 plain text turns.
+
+    Tool result messages contain raw Notion JSON (hundreds of tokens each).
+    The fallback model has a 6k TPM per-request cap, so we remove anything
+    that isn't a plain user/assistant text exchange.
+    """
+    text_turns = [
+        m for m in history
+        if m.get("role") in ("user", "assistant")
+        and not m.get("tool_calls")
+        and m.get("content")
+    ]
+    return text_turns[-4:]
+
+
 def run_agent_turn(
     user_message: str,
     gemini_history: list,
@@ -306,6 +322,5 @@ def run_agent_turn(
             "Primary model %s failed (%s), retrying with fallback %s",
             AGENT_MODEL, exc, FALLBACK_MODEL,
         )
-        # Truncate history to avoid exceeding fallback model's small context window (6k TPM).
-        truncated_history = gemini_history[-4:] if len(gemini_history) > 4 else gemini_history
-        return _run_with_model(FALLBACK_MODEL, user_message, truncated_history, registry)
+        slim_history = _slim_history_for_fallback(gemini_history)
+        return _run_with_model(FALLBACK_MODEL, user_message, slim_history, registry)

@@ -153,7 +153,7 @@ class TestRunAgentTurn:
         assert text == "Fallback response."
         assert mock_client.chat.completions.create.call_count == 2
 
-    def test_fallback_truncates_long_history(self):
+    def test_fallback_strips_tool_messages_and_truncates(self):
         agent = _reload_agent()
         mock_client = self._make_mock_client()
         mock_client.chat.completions.create.side_effect = [
@@ -161,14 +161,26 @@ class TestRunAgentTurn:
             _make_text_response("Fallback response."),
         ]
 
-        # 10 history entries — fallback should only use the last 4
-        long_history = [{"role": "user", "content": f"msg {i}"} for i in range(10)]
+        # History with tool-call noise and 6 plain text turns
+        long_history = [
+            {"role": "user", "content": "What projects?"},
+            {"role": "assistant", "content": "", "tool_calls": [{"id": "c1", "type": "function", "function": {"name": "query_database", "arguments": "{}"}}]},
+            {"role": "tool", "tool_call_id": "c1", "content": '{"results": [{"huge": "json payload"}]}'},
+            {"role": "assistant", "content": "Swapnil has 4 projects."},
+            {"role": "user", "content": "Elaborate on Notion Clerk"},
+            {"role": "assistant", "content": "", "tool_calls": [{"id": "c2", "type": "function", "function": {"name": "query_database", "arguments": "{}"}}]},
+            {"role": "tool", "tool_call_id": "c2", "content": '{"results": [{"more": "big json"}]}'},
+            {"role": "assistant", "content": "Notion Clerk is a chat agent."},
+        ]
         with patch.object(agent, "OpenAI", return_value=mock_client):
-            text, _ = agent.run_agent_turn("Hi", long_history)
+            text, _ = agent.run_agent_turn("Tell me more", long_history)
 
         assert text == "Fallback response."
-        # Second call to completions.create is the fallback; check its messages list.
-        # The list is mutable so the assistant reply (appended after the call) is visible here.
-        # system(1) + 4 truncated history + user(1) + assistant reply(1) = 7 (not the full 10+3)
-        fallback_call_messages = mock_client.chat.completions.create.call_args_list[1][1]["messages"]
-        assert len(fallback_call_messages) == 7  # would be 13 without truncation
+        fallback_messages = mock_client.chat.completions.create.call_args_list[1][1]["messages"]
+        # Only plain text turns survive: "What projects?" + "4 projects" + "Elaborate" + "Notion Clerk is..."
+        # = 4 text turns + system(1) + current user(1) + assistant reply(1) = 7
+        assert len(fallback_messages) == 7
+        roles = [m["role"] for m in fallback_messages]
+        assert "tool" not in roles
+        # No assistant messages with tool_calls
+        assert all(not m.get("tool_calls") for m in fallback_messages)
