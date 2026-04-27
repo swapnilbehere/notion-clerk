@@ -13,6 +13,7 @@ _SYSTEM_INSTRUCTION = """You are Notion Clerk, an AI assistant that helps users 
 
 You have tools to:
 - List available databases (always call get_notion_ids first if you don't know which database to use)
+- Get the field names and types for a specific database (call get_database_schema when the user asks about fields or properties)
 - Create items in databases with correctly typed properties
 - Create freeform pages
 - Search across the workspace
@@ -34,6 +35,20 @@ _TOOL_DECLARATIONS = types.Tool(
             name="get_notion_ids",
             description="List all Notion databases the integration can access. Call this first to discover available databases before writing.",
             parameters=types.Schema(type=types.Type.OBJECT, properties={}),
+        ),
+        types.FunctionDeclaration(
+            name="get_database_schema",
+            description="Get the field names and their types for a Notion database. Call this when the user asks what fields or properties a database has.",
+            parameters=types.Schema(
+                type=types.Type.OBJECT,
+                properties={
+                    "database_id": types.Schema(
+                        type=types.Type.STRING,
+                        description="The Notion database ID.",
+                    ),
+                },
+                required=["database_id"],
+            ),
         ),
         types.FunctionDeclaration(
             name="create_database_item",
@@ -138,6 +153,7 @@ _TOOL_DECLARATIONS = types.Tool(
 # Read-only tools always use real Notion
 _READ_REGISTRY: dict[str, Callable] = {
     "get_notion_ids": notion_tools.get_notion_ids,
+    "get_database_schema": notion_tools.get_database_schema,
     "search_notion": notion_tools.search_notion,
     "query_database": notion_tools.query_database,
     "fetch_page": notion_tools.fetch_page,

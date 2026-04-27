@@ -143,6 +143,29 @@ class TestGetNotionIds:
         assert result["databases"] == []
 
 
+class TestGetDatabaseSchema:
+    @patch("notion_clerk.tools.requests.get")
+    def test_returns_property_names_and_types(self, mock_get, mock_notion_response, sample_database_schema):
+        tools = _reload_tools()
+        mock_get.return_value = mock_notion_response(json_data=sample_database_schema)
+        result = tools.get_database_schema("db-123")
+        assert result["title"] == "Test DB"
+        assert result["properties"]["Name"] == "title"
+        assert result["properties"]["Due Date"] == "date"
+        assert result["properties"]["Done"] == "checkbox"
+
+    @patch("notion_clerk.tools.requests.get")
+    def test_empty_properties(self, mock_get, mock_notion_response):
+        tools = _reload_tools()
+        mock_get.return_value = mock_notion_response(json_data={
+            "id": "db-empty",
+            "title": [{"plain_text": "Empty DB"}],
+            "properties": {},
+        })
+        result = tools.get_database_schema("db-empty")
+        assert result["properties"] == {}
+
+
 class TestCreateDatabaseItem:
     @patch("notion_clerk.tools.requests.post")
     @patch("notion_clerk.tools.requests.get")

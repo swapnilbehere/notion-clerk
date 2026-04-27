@@ -129,6 +129,13 @@ def _coerce_property_value(prop_schema: dict, value: Any) -> dict:
     return {"rich_text": [{"text": {"content": _as_str(value)}}]}
 
 
+def get_database_schema(database_id: str) -> dict:
+    """Return the property names and types for a Notion database."""
+    schema = _get_database_schema(database_id)
+    properties = {name: prop.get("type") for name, prop in schema.get("properties", {}).items()}
+    return {"title": schema.get("title"), "properties": properties}
+
+
 def create_database_item(database_id: str, properties: Dict[str, Any]) -> dict:
     """Create a new page in a Notion database."""
     logging.info("create_database_item: db=%s, properties=%s", database_id, properties)

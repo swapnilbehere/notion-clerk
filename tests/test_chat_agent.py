@@ -16,6 +16,7 @@ class TestToolRegistry:
     def test_read_registry_has_expected_keys(self):
         agent = _reload_agent()
         assert "get_notion_ids" in agent._READ_REGISTRY
+        assert "get_database_schema" in agent._READ_REGISTRY
         assert "search_notion" in agent._READ_REGISTRY
         assert "query_database" in agent._READ_REGISTRY
         assert "fetch_page" in agent._READ_REGISTRY
