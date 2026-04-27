@@ -1,13 +1,15 @@
-"""Gemini SDK agent loop for Notion Clerk."""
+"""Groq-backed agent loop for Notion Clerk (OpenAI-compatible API)."""
 
+import json
 import logging
 from typing import Any, Callable
 
-from google import genai
-from google.genai import types
+from openai import OpenAI
 
-from .config import GOOGLE_API_KEY, AGENT_MODEL, FALLBACK_MODEL
+from .config import GROQ_API_KEY, AGENT_MODEL, FALLBACK_MODEL
 from . import tools as notion_tools
+
+_GROQ_BASE_URL = "https://api.groq.com/openai/v1"
 
 _SYSTEM_INSTRUCTION = """You are Notion Clerk, an AI assistant embedded in Swapnil Behere's professional portfolio workspace.
 
@@ -40,126 +42,124 @@ Guidelines:
 - If the user's intent is ambiguous, ask one clarifying question
 """
 
-_TOOL_DECLARATIONS = types.Tool(
-    function_declarations=[
-        types.FunctionDeclaration(
-            name="get_notion_ids",
-            description="List all Notion databases the integration can access. Call this first to discover available databases before writing.",
-            parameters=types.Schema(type=types.Type.OBJECT, properties={}),
-        ),
-        types.FunctionDeclaration(
-            name="get_database_schema",
-            description="Get the field names and their types for a Notion database. Call this when the user asks what fields or properties a database has.",
-            parameters=types.Schema(
-                type=types.Type.OBJECT,
-                properties={
-                    "database_id": types.Schema(
-                        type=types.Type.STRING,
-                        description="The Notion database ID.",
-                    ),
+_TOOLS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "get_notion_ids",
+            "description": "List all Notion databases the integration can access. Call this first to discover available databases before writing.",
+            "parameters": {"type": "object", "properties": {}, "required": []},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_database_schema",
+            "description": "Get the field names and their types for a Notion database. Call this when the user asks what fields or properties a database has.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "database_id": {"type": "string", "description": "The Notion database ID."},
                 },
-                required=["database_id"],
-            ),
-        ),
-        types.FunctionDeclaration(
-            name="create_database_item",
-            description="Create a new item (row) in a Notion database with correctly typed properties.",
-            parameters=types.Schema(
-                type=types.Type.OBJECT,
-                properties={
-                    "database_id": types.Schema(
-                        type=types.Type.STRING,
-                        description="The Notion database ID.",
-                    ),
-                    "properties": types.Schema(
-                        type=types.Type.OBJECT,
-                        description='Flat dict of property name to value. E.g. {"Name": "Buy milk", "Due Date": "tomorrow", "Done": false}',
-                    ),
+                "required": ["database_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "create_database_item",
+            "description": "Create a new item (row) in a Notion database with correctly typed properties.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "database_id": {"type": "string", "description": "The Notion database ID."},
+                    "properties": {
+                        "type": "object",
+                        "description": 'Flat dict of property name to value. E.g. {"Name": "Buy milk", "Due Date": "tomorrow", "Done": false}',
+                    },
                 },
-                required=["database_id", "properties"],
-            ),
-        ),
-        types.FunctionDeclaration(
-            name="create_page_anywhere",
-            description="Create a new freeform Notion page (not in a database) under any parent page.",
-            parameters=types.Schema(
-                type=types.Type.OBJECT,
-                properties={
-                    "title": types.Schema(type=types.Type.STRING, description="Page title"),
-                    "parent_page_id": types.Schema(
-                        type=types.Type.STRING,
-                        description="Parent page ID. Omit to use the default.",
-                    ),
-                    "content": types.Schema(
-                        type=types.Type.STRING,
-                        description="Optional body text for the page.",
-                    ),
+                "required": ["database_id", "properties"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "create_page_anywhere",
+            "description": "Create a new freeform Notion page (not in a database) under any parent page.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "title": {"type": "string", "description": "Page title."},
+                    "parent_page_id": {"type": "string", "description": "Parent page ID. Omit to use the default."},
+                    "content": {"type": "string", "description": "Optional body text for the page."},
                 },
-                required=["title"],
-            ),
-        ),
-        types.FunctionDeclaration(
-            name="search_notion",
-            description="Search across all pages and databases in the Notion workspace.",
-            parameters=types.Schema(
-                type=types.Type.OBJECT,
-                properties={
-                    "query": types.Schema(
-                        type=types.Type.STRING,
-                        description="Search query text.",
-                    ),
+                "required": ["title"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "search_notion",
+            "description": "Search across all pages and databases in the Notion workspace.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "Search query text."},
                 },
-                required=["query"],
-            ),
-        ),
-        types.FunctionDeclaration(
-            name="query_database",
-            description="Fetch all items in a Notion database. Use to read or audit database contents.",
-            parameters=types.Schema(
-                type=types.Type.OBJECT,
-                properties={
-                    "database_id": types.Schema(
-                        type=types.Type.STRING,
-                        description="The database ID to query.",
-                    ),
+                "required": ["query"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "query_database",
+            "description": "Fetch all items in a Notion database. Use to read or audit database contents.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "database_id": {"type": "string", "description": "The database ID to query."},
                 },
-                required=["database_id"],
-            ),
-        ),
-        types.FunctionDeclaration(
-            name="fetch_page",
-            description="Fetch the full content and properties of a specific Notion page.",
-            parameters=types.Schema(
-                type=types.Type.OBJECT,
-                properties={
-                    "page_id": types.Schema(
-                        type=types.Type.STRING,
-                        description="The page ID to fetch.",
-                    ),
+                "required": ["database_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "fetch_page",
+            "description": "Fetch the full content and properties of a specific Notion page.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "page_id": {"type": "string", "description": "The page ID to fetch."},
                 },
-                required=["page_id"],
-            ),
-        ),
-        types.FunctionDeclaration(
-            name="update_database_item",
-            description="Update properties of an existing Notion database item.",
-            parameters=types.Schema(
-                type=types.Type.OBJECT,
-                properties={
-                    "page_id": types.Schema(
-                        type=types.Type.STRING,
-                        description="The page ID of the item to update.",
-                    ),
-                    "properties": types.Schema(
-                        type=types.Type.OBJECT,
-                        description='Flat dict of property name to new value. E.g. {"Done": true, "Priority": "High"}',
-                    ),
+                "required": ["page_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "update_database_item",
+            "description": "Update properties of an existing Notion database item.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "page_id": {"type": "string", "description": "The page ID of the item to update."},
+                    "properties": {
+                        "type": "object",
+                        "description": 'Flat dict of property name to new value. E.g. {"Done": true, "Priority": "High"}',
+                    },
                 },
-                required=["page_id", "properties"],
-            ),
-        ),
-    ]
-)
+                "required": ["page_id", "properties"],
+            },
+        },
+    },
+]
 
 # Read-only tools always use real Notion
 _READ_REGISTRY: dict[str, Callable] = {
@@ -192,57 +192,56 @@ def _dispatch(name: str, args: dict[str, Any], registry: dict[str, Callable]) ->
 def _run_with_model(
     model: str,
     user_message: str,
-    gemini_history: list,
+    history: list,
     registry: dict[str, Callable],
 ) -> tuple[str, list]:
-    client = genai.Client(api_key=GOOGLE_API_KEY)
+    client = OpenAI(api_key=GROQ_API_KEY, base_url=_GROQ_BASE_URL)
 
-    contents = list(gemini_history)
-    contents.append(types.Content(role="user", parts=[types.Part(text=user_message)]))
+    messages = [{"role": "system", "content": _SYSTEM_INSTRUCTION}]
+    messages.extend(history)
+    messages.append({"role": "user", "content": user_message})
 
-    new_entries: list = [contents[-1]]
+    new_entries: list = [{"role": "user", "content": user_message}]
 
     while True:
-        response = client.models.generate_content(
+        response = client.chat.completions.create(
             model=model,
-            contents=contents,
-            config=types.GenerateContentConfig(
-                system_instruction=_SYSTEM_INSTRUCTION,
-                tools=[_TOOL_DECLARATIONS],
-                temperature=0.1,
-            ),
+            messages=messages,
+            tools=_TOOLS,
+            tool_choice="auto",
+            temperature=0.1,
         )
 
-        candidate = response.candidates[0]
-        contents.append(candidate.content)
-        new_entries.append(candidate.content)
+        msg = response.choices[0].message
 
-        fn_calls = [p for p in candidate.content.parts if p.function_call is not None]
+        msg_dict: dict[str, Any] = {"role": "assistant", "content": msg.content or ""}
+        if msg.tool_calls:
+            msg_dict["tool_calls"] = [
+                {
+                    "id": tc.id,
+                    "type": "function",
+                    "function": {"name": tc.function.name, "arguments": tc.function.arguments},
+                }
+                for tc in msg.tool_calls
+            ]
+        messages.append(msg_dict)
+        new_entries.append(msg_dict)
 
-        if not fn_calls:
+        if not msg.tool_calls:
             break
 
-        tool_parts = []
-        for part in fn_calls:
-            fc = part.function_call
-            result = _dispatch(fc.name, dict(fc.args), registry)
-            tool_parts.append(
-                types.Part(
-                    function_response=types.FunctionResponse(
-                        name=fc.name,
-                        response={"result": result},
-                    )
-                )
-            )
+        for tc in msg.tool_calls:
+            args = json.loads(tc.function.arguments)
+            result = _dispatch(tc.function.name, args, registry)
+            tool_msg = {
+                "role": "tool",
+                "tool_call_id": tc.id,
+                "content": json.dumps(result),
+            }
+            messages.append(tool_msg)
+            new_entries.append(tool_msg)
 
-        tool_content = types.Content(role="user", parts=tool_parts)
-        contents.append(tool_content)
-        new_entries.append(tool_content)
-
-    response_text = "".join(
-        p.text for p in candidate.content.parts if p.text is not None
-    )
-    return response_text, new_entries
+    return msg.content or "", new_entries
 
 
 def run_agent_turn(
@@ -251,7 +250,7 @@ def run_agent_turn(
     write_tools: dict[str, Callable] | None = None,
 ) -> tuple[str, list]:
     """
-    Run one conversational turn through the Gemini function-calling loop.
+    Run one conversational turn through the Groq function-calling loop.
     Falls back to FALLBACK_MODEL if the primary model raises an error.
 
     Returns:

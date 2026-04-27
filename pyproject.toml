@@ -9,7 +9,7 @@ description = "Chat with your Notion workspace in plain English"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "google-genai>=1.0.0",
+    "openai>=1.0.0",
     "requests>=2.31.0",
     "python-dateutil>=2.9.0",
     "python-dotenv>=1.0.0",

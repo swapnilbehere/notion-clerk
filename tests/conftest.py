@@ -7,7 +7,7 @@ from unittest.mock import MagicMock
 @pytest.fixture(autouse=True)
 def mock_env_vars(monkeypatch):
     """Ensure tests never use real API keys."""
-    monkeypatch.setenv("GOOGLE_API_KEY", "test-google-key")
+    monkeypatch.setenv("GROQ_API_KEY", "test-groq-key")
     monkeypatch.setenv("NOTION_API_KEY", "test-notion-key")
     monkeypatch.setenv("NOTION_PARENT_PAGE", "test-parent-page-id")
     monkeypatch.setenv("NOTION_FEEDBACK_DB_ID", "test-feedback-db-id")

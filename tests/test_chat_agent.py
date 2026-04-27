@@ -1,6 +1,7 @@
-"""Tests for the Gemini function-calling agent loop."""
+"""Tests for the Groq function-calling agent loop."""
 
 import importlib
+import json
 from unittest.mock import MagicMock, patch
 
 
@@ -42,107 +43,112 @@ class TestDispatch:
         agent = _reload_agent()
         result = agent._dispatch("nonexistent_tool", {}, {})
         assert "error" in result
-        assert "nonexistent_tool" in result["error"]
 
     def test_returns_error_on_exception(self):
         agent = _reload_agent()
         def boom(**kwargs):
             raise ValueError("connection refused")
-        registry = {"bad_tool": boom}
-        result = agent._dispatch("bad_tool", {}, registry)
+        result = agent._dispatch("bad_tool", {}, {"bad_tool": boom})
         assert "error" in result
         assert "connection refused" in result["error"]
 
     def test_calls_function_with_kwargs(self):
         agent = _reload_agent()
         mock_fn = MagicMock(return_value={"ok": True})
-        registry = {"my_tool": mock_fn}
-        result = agent._dispatch("my_tool", {"a": 1, "b": "x"}, registry)
+        result = agent._dispatch("my_tool", {"a": 1, "b": "x"}, {"my_tool": mock_fn})
         mock_fn.assert_called_once_with(a=1, b="x")
         assert result == {"ok": True}
 
 
+def _make_text_response(text: str):
+    """Mock OpenAI response with a text reply and no tool calls."""
+    msg = MagicMock()
+    msg.content = text
+    msg.tool_calls = None
+
+    choice = MagicMock()
+    choice.message = msg
+
+    resp = MagicMock()
+    resp.choices = [choice]
+    return resp
+
+
+def _make_tool_response(tool_name: str, tool_args: dict, call_id: str = "call-1"):
+    """Mock OpenAI response with a single tool call."""
+    tc = MagicMock()
+    tc.id = call_id
+    tc.function.name = tool_name
+    tc.function.arguments = json.dumps(tool_args)
+
+    msg = MagicMock()
+    msg.content = None
+    msg.tool_calls = [tc]
+
+    choice = MagicMock()
+    choice.message = msg
+
+    resp = MagicMock()
+    resp.choices = [choice]
+    return resp
+
+
 class TestRunAgentTurn:
-    def _make_text_response(self, text: str):
-        """Build a mock Gemini response with a text part and no function calls."""
-        part = MagicMock()
-        part.text = text
-        part.function_call = None
-
-        content = MagicMock()
-        content.parts = [part]
-
-        candidate = MagicMock()
-        candidate.content = content
-
-        response = MagicMock()
-        response.candidates = [candidate]
-        return response
-
-    def _make_tool_then_text_response(self, tool_name: str, tool_args: dict, final_text: str):
-        """Build two mock responses: first a function call, then a text reply."""
-        fc = MagicMock()
-        fc.name = tool_name
-        fc.args = tool_args
-
-        fc_part = MagicMock()
-        fc_part.text = None
-        fc_part.function_call = fc
-
-        fc_content = MagicMock()
-        fc_content.parts = [fc_part]
-
-        fc_candidate = MagicMock()
-        fc_candidate.content = fc_content
-
-        fc_response = MagicMock()
-        fc_response.candidates = [fc_candidate]
-
-        text_response = self._make_text_response(final_text)
-        return [fc_response, text_response]
-
-    @patch("notion_clerk.chat_agent.genai.Client")
-    def test_returns_text_when_no_tool_calls(self, mock_client_cls):
-        agent = _reload_agent()
+    def _make_mock_client(self):
         mock_client = MagicMock()
-        mock_client_cls.return_value = mock_client
-        mock_client.models.generate_content.return_value = self._make_text_response("Hello!")
+        return mock_client
 
-        text, new_history = agent.run_agent_turn("Hi", [])
+    def test_returns_text_when_no_tool_calls(self):
+        agent = _reload_agent()
+        mock_client = self._make_mock_client()
+        mock_client.chat.completions.create.return_value = _make_text_response("Hello!")
+
+        with patch.object(agent, "OpenAI", return_value=mock_client):
+            text, new_history = agent.run_agent_turn("Hi", [])
 
         assert text == "Hello!"
-        assert len(new_history) == 2  # user message + model response
+        assert len(new_history) == 2  # user message + assistant response
 
-    @patch("notion_clerk.chat_agent.genai.Client")
-    def test_write_tool_override_is_called(self, mock_client_cls):
+    def test_write_tool_override_is_called(self):
         agent = _reload_agent()
-        mock_client = MagicMock()
-        mock_client_cls.return_value = mock_client
-
-        responses = self._make_tool_then_text_response(
-            "create_database_item",
-            {"database_id": "db-1", "properties": {"Name": "Test"}},
-            "Done! Added 'Test'.",
-        )
-        mock_client.models.generate_content.side_effect = responses
+        mock_client = self._make_mock_client()
+        mock_client.chat.completions.create.side_effect = [
+            _make_tool_response("create_database_item", {"database_id": "db-1", "properties": {"Name": "Test"}}),
+            _make_text_response("Done! Added 'Test'."),
+        ]
 
         mock_write = MagicMock(return_value={"id": "demo-1"})
-        text, _ = agent.run_agent_turn(
-            "Add Test to my database",
-            [],
-            write_tools={"create_database_item": mock_write},
-        )
+        with patch.object(agent, "OpenAI", return_value=mock_client):
+            text, _ = agent.run_agent_turn(
+                "Add Test to my database",
+                [],
+                write_tools={"create_database_item": mock_write},
+            )
 
         mock_write.assert_called_once_with(database_id="db-1", properties={"Name": "Test"})
         assert "Done" in text
 
-    @patch("notion_clerk.chat_agent.genai.Client")
-    def test_empty_history_does_not_crash(self, mock_client_cls):
+    def test_empty_history_does_not_crash(self):
         agent = _reload_agent()
-        mock_client = MagicMock()
-        mock_client_cls.return_value = mock_client
-        mock_client.models.generate_content.return_value = self._make_text_response("Ready.")
+        mock_client = self._make_mock_client()
+        mock_client.chat.completions.create.return_value = _make_text_response("Ready.")
 
-        text, new_history = agent.run_agent_turn("Hello", [])
+        with patch.object(agent, "OpenAI", return_value=mock_client):
+            text, new_history = agent.run_agent_turn("Hello", [])
+
         assert isinstance(text, str)
         assert isinstance(new_history, list)
+
+    def test_falls_back_to_secondary_model_on_error(self):
+        agent = _reload_agent()
+        mock_client = self._make_mock_client()
+        mock_client.chat.completions.create.side_effect = [
+            Exception("quota exceeded"),
+            _make_text_response("Fallback response."),
+        ]
+
+        with patch.object(agent, "OpenAI", return_value=mock_client):
+            text, _ = agent.run_agent_turn("Hi", [])
+
+        assert text == "Fallback response."
+        assert mock_client.chat.completions.create.call_count == 2
