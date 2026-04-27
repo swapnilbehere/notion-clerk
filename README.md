@@ -2,7 +2,7 @@
 
 Chat with your Notion workspace in plain English. No buttons, no database IDs — just natural conversation.
 
-**[Live Demo →](https://notion-clerk.streamlit.app)** *(coming soon)*
+**[Live Demo →](https://notion-clerk.streamlit.app)**
 
 ## What it does
 
