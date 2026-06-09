@@ -137,20 +137,19 @@ def main() -> None:
     _render_sidebar()
 
     st.title("Notion Clerk")
-    st.markdown(
-        "👋 This is **Swapnil Behere's** portfolio — an AI/ML Engineer building GenAI & ML systems.  \n"
-        "Ask about his projects, skills, or experience. Everything lives in Notion and answers in seconds."
-    )
+    st.markdown("👋 Hi, I'm **Swapnil Behere** — AI/ML Engineer. Ask me anything about my work, projects, or skills.")
 
     if not st.session_state.messages:
-        st.markdown("**Try one of these:**")
-        cols = st.columns(3)
+        st.markdown("**Try asking:**")
         quick_prompts = [
-            ("🚀 His projects", "What projects has Swapnil built?"),
-            ("🛠 His skills", "What are Swapnil's top ML and GenAI skills?"),
-            ("💼 His experience", "Show Swapnil's work experience"),
+            ("🚀 Projects", "What projects has Swapnil built?"),
+            ("🛠 Skills", "What are Swapnil's top ML and GenAI skills?"),
+            ("💼 Experience", "Tell me about Swapnil's work experience"),
+            ("🎓 Education", "What is Swapnil's educational background?"),
         ]
-        for col, (label, prompt) in zip(cols, quick_prompts):
+        row1 = st.columns(2)
+        row2 = st.columns(2)
+        for col, (label, prompt) in zip(row1 + row2, quick_prompts):
             with col:
                 if st.button(label, use_container_width=True):
                     st.session_state.pending_prompt = prompt
@@ -165,7 +164,7 @@ def main() -> None:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
-    if user_input := st.chat_input("Ask me to manage your Notion workspace..."):
+    if user_input := st.chat_input("Ask about Swapnil's experience, projects, or skills..."):
         _handle_message(user_input)
         st.rerun()
 

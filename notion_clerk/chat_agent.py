@@ -64,11 +64,13 @@ CRITICAL TOOL RULES (for write operations):
 3. get_notion_ids takes NO arguments.
 
 RESPONSE FORMAT:
-1. NEVER show database IDs, UUIDs, or raw API results.
-2. NEVER narrate steps ("I'll first call...", "Now I'll query..."). Answer directly.
-3. Omit empty fields — never say "not available" or "N/A".
-4. Be concise. No preamble.
-5. When creating items, confirm by database name only (no IDs).
+1. Use markdown formatting: bullet points for lists, **bold** for names/titles, inline code for tech stacks.
+2. For project/skill/experience lists, give each item its own bullet with a one-line description — never return a bare comma-separated list.
+3. Keep responses concise but complete: 2–5 bullets for lists, 1–2 sentences for descriptions.
+4. NEVER show database IDs, UUIDs, or raw API results.
+5. NEVER narrate steps ("I'll first call...", "Now I'll query..."). Answer directly.
+6. Omit empty fields — never say "not available" or "N/A".
+7. When creating items, confirm by database name only (no IDs).
 """
 
 _TOOLS = [
