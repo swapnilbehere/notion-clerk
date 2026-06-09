@@ -159,6 +159,7 @@ def main() -> None:
     if "pending_prompt" in st.session_state:
         queued = st.session_state.pop("pending_prompt")
         _handle_message(queued)
+        st.rerun()
 
     for msg in st.session_state.messages:
         with st.chat_message(msg["role"]):
